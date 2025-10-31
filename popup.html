@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Daily Git Checker</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Daily Git Checker</h1>
+
+      <div class="input-group">
+        <label for="sheetUrl">Google Sheet URL</label>
+        <input
+          type="text"
+          id="sheetUrl"
+          placeholder="Google Sheets URL을 입력하세요"
+        />
+      </div>
+
+      <div class="input-group">
+        <label for="gitlabKey">Gitlab Credential Key</label>
+        <input
+          type="password"
+          id="gitlabKey"
+          placeholder="GitLab Personal Access Token"
+        />
+      </div>
+
+      <div class="button-group">
+        <button id="saveBtn" class="btn btn-save">save</button>
+        <button id="checkBtn" class="btn btn-check">check</button>
+      </div>
+
+      <div id="result" class="result hidden"></div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
