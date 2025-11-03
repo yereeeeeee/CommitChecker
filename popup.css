@@ -53,6 +53,7 @@ input[type="password"] {
   color: #333;
   transition: all 0.3s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: solid 1px rgba(0, 0, 0, 0);
 }
 
 input[type="text"]:focus,
@@ -118,13 +119,13 @@ input::placeholder {
     transform: translateX(0);
   }
   25% {
-    transform: translateX(-5px);
+    transform: translateX(-4px);
   }
   50% {
-    transform: translateX(5px);
+    transform: translateX(4px);
   }
   75% {
-    transform: translateX(-5px);
+    transform: translateX(-4px);
   }
   100% {
     transform: translateX(0);
@@ -132,5 +133,10 @@ input::placeholder {
 }
 
 .shake {
-  animation: shake 0.3s;
+  animation: shake 0.3s ease;
+}
+
+.error {
+  border: 1px solid rgb(255, 27, 103) !important;
+  outline: none;
 }

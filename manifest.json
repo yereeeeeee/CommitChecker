@@ -9,6 +9,9 @@
     "https://sheets.googleapis.com/*",
     "https://gitlab.com/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' https://cdn.jsdelivr.net; object-src 'self'"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
