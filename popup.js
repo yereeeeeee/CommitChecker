@@ -1,65 +1,58 @@
-// 페이지 로드 시 저장된 데이터 불러오기
-document.addEventListener("DOMContentLoaded", function () {
-  chrome.storage.sync.get(["sheetUrl", "gitlabKey"], function (result) {
-    if (result.sheetUrl) {
-      document.getElementById("sheetUrl").value = result.sheetUrl;
-    }
-    if (result.gitlabKey) {
-      document.getElementById("gitlabKey").value = result.gitlabKey;
-    }
+const sheetInput = document.getElementById("sheetUrl");
+const gitlabInput = document.getElementById("gitlabKey");
+const saveBtn = document.getElementById("saveBtn");
+const checkBtn = document.getElementById("checkBtn");
+
+// 입력 즉시 자동 저장
+[sheetInput, gitlabInput].forEach((input) => {
+  input.addEventListener("input", () => {
+    const sheetUrl = sheetInput.value.trim();
+    const gitlabKey = gitlabInput.value.trim();
+
+    chrome.storage.sync.set({ sheetUrl, gitlabKey });
   });
 });
 
 // Save 버튼 클릭
-document.getElementById("saveBtn").addEventListener("click", function () {
-  const sheetUrl = document.getElementById("sheetUrl").value;
-  const gitlabKey = document.getElementById("gitlabKey").value;
+saveBtn.addEventListener("click", () => {
+  const sheetUrl = sheetInput.value.trim();
+  const gitlabKey = gitlabInput.value.trim();
 
   if (!sheetUrl || !gitlabKey) {
-    showResult("모든 필드를 입력해주세요.", "error");
+    if (!sheetUrl) highlightInput(sheetInput);
+    if (!gitlabKey) highlightInput(gitlabInput);
     return;
   }
 
-  chrome.storage.sync.set(
-    {
-      sheetUrl: sheetUrl,
-      gitlabKey: gitlabKey,
-    },
-    function () {
-      showResult("설정이 저장되었습니다!", "success");
-    }
-  );
+  chrome.storage.sync.set({ sheetUrl, gitlabKey });
 });
 
 // Check 버튼 클릭
-document
-  .getElementById("checkBtn")
-  .addEventListener("click", async function () {
-    const sheetUrl = document.getElementById("sheetUrl").value;
-    const gitlabKey = document.getElementById("gitlabKey").value;
+checkBtn.addEventListener("click", async () => {
+  const sheetUrl = sheetInput.value.trim();
+  const gitlabKey = gitlabInput.value.trim();
 
-    if (!sheetUrl || !gitlabKey) {
-      showResult("먼저 설정을 저장해주세요.", "error");
-      return;
-    }
+  if (!sheetUrl || !gitlabKey) {
+    if (!sheetUrl) highlightInput(sheetInput);
+    if (!gitlabKey) highlightInput(gitlabInput);
+    return;
+  }
 
-    showResult("커밋 정보를 확인 중입니다...", "info");
+  try {
+    // Google Sheets에서 데이터 가져오기
+    const sheetData = await fetchGoogleSheetData(sheetUrl);
 
-    try {
-      // Google Sheets에서 데이터 가져오기
-      const sheetData = await fetchGoogleSheetData(sheetUrl);
+    // GitLab API로 커밋 확인
+    const commitData = await checkGitLabCommits(gitlabKey, sheetData);
 
-      // GitLab API로 커밋 확인
-      const commitData = await checkGitLabCommits(gitlabKey, sheetData);
-
-      showResult(
-        `확인 완료!\n오늘의 커밋: ${commitData.todayCommits}건\n최근 커밋: ${commitData.lastCommit}`,
-        "success"
-      );
-    } catch (error) {
-      showResult(`오류 발생: ${error.message}`, "error");
-    }
-  });
+    showResult(
+      `확인 완료!\n오늘의 커밋: ${commitData.todayCommits}건\n최근 커밋: ${commitData.lastCommit}`,
+      "success"
+    );
+  } catch (error) {
+    showResult(`오류 발생: ${error.message}`, "error");
+  }
+});
 
 // Google Sheets 데이터 가져오기
 async function fetchGoogleSheetData(url) {
