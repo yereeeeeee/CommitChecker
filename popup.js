@@ -1,20 +1,46 @@
+import { WEBHOOK_URL } from "./config.js";
+
 const sheetInput = document.getElementById("sheetUrl");
 const gitlabInput = document.getElementById("gitlabKey");
 const saveBtn = document.getElementById("saveBtn");
 const checkBtn = document.getElementById("checkBtn");
 
-// 입력 즉시 자동 저장
+let isSaved = false;
+
+// 저장된 값 불러오기
+chrome.storage.sync.get(["sheetUrl", "gitlabKey"], (data) => {
+  if (data.sheetUrl) sheetInput.value = data.sheetUrl;
+  if (data.gitlabKey) gitlabInput.value = data.gitlabKey;
+});
+
+// 입력 시 자동 저장 + 버튼 복구
 [sheetInput, gitlabInput].forEach((input) => {
   input.addEventListener("input", () => {
     const sheetUrl = sheetInput.value.trim();
     const gitlabKey = gitlabInput.value.trim();
-
     chrome.storage.sync.set({ sheetUrl, gitlabKey });
+
+    // 값이 바뀌면 Save 버튼 원상복귀
+    if (isSaved) {
+      saveBtn.innerHTML = "save";
+      saveBtn.classList.remove("saved");
+      isSaved = false;
+    }
+  });
+
+  input.addEventListener("focus", () => {
+    input.classList.remove("error");
+    input.style.border = "";
   });
 });
 
+function highlightInput(input) {
+  input.classList.add("shake", "error");
+  setTimeout(() => input.classList.remove("shake"), 400);
+}
+
 // Save 버튼 클릭
-saveBtn.addEventListener("click", () => {
+saveBtn.addEventListener("click", async () => {
   const sheetUrl = sheetInput.value.trim();
   const gitlabKey = gitlabInput.value.trim();
 
@@ -24,10 +50,23 @@ saveBtn.addEventListener("click", () => {
     return;
   }
 
-  chrome.storage.sync.set({ sheetUrl, gitlabKey });
+  // spinner 표시
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = `<div class="spinner"></div>`;
+
+  await new Promise((res) => setTimeout(res, 800)); // UX용 살짝 딜레이
+
+  // 저장
+  chrome.storage.sync.set({ sheetUrl, gitlabKey }, () => {
+    // 체크 표시로 변경
+    saveBtn.innerHTML = "✓";
+    saveBtn.disabled = false;
+    saveBtn.classList.add("saved");
+    isSaved = true;
+  });
 });
 
-// Check 버튼 클릭
+// 🔹 Check 버튼 클릭 → Webhook 호출
 checkBtn.addEventListener("click", async () => {
   const sheetUrl = sheetInput.value.trim();
   const gitlabKey = gitlabInput.value.trim();
@@ -38,72 +77,21 @@ checkBtn.addEventListener("click", async () => {
     return;
   }
 
-  try {
-    // Google Sheets에서 데이터 가져오기
-    const sheetData = await fetchGoogleSheetData(sheetUrl);
-
-    // GitLab API로 커밋 확인
-    const commitData = await checkGitLabCommits(gitlabKey, sheetData);
-
-    showResult(
-      `확인 완료!\n오늘의 커밋: ${commitData.todayCommits}건\n최근 커밋: ${commitData.lastCommit}`,
-      "success"
-    );
-  } catch (error) {
-    showResult(`오류 발생: ${error.message}`, "error");
-  }
-});
-
-// Google Sheets 데이터 가져오기
-async function fetchGoogleSheetData(url) {
-  // Google Sheets URL에서 스프레드시트 ID 추출
-  const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-  if (!match) {
-    throw new Error("올바른 Google Sheets URL이 아닙니다.");
-  }
-
-  const sheetId = match[1];
-
-  // 실제로는 Google Sheets API를 사용해야 하지만,
-  // 여기서는 간단한 예시로 구현
-  return {
-    sheetId: sheetId,
-    users: ["user1", "user2"], // 예시 데이터
-  };
-}
-
-// GitLab 커밋 확인
-async function checkGitLabCommits(token, sheetData) {
-  // GitLab API 엔드포인트
-  const apiUrl = "https://gitlab.com/api/v4/projects";
+  const payload = { sheetUrl, gitlabKey };
 
   try {
-    const response = await fetch(`${apiUrl}`, {
-      headers: {
-        "PRIVATE-TOKEN": token,
-      },
+    const res = await fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
 
-    if (!response.ok) {
-      throw new Error("GitLab API 인증에 실패했습니다.");
-    }
-
-    const projects = await response.json();
-
-    // 오늘 날짜 가져오기
-    const today = new Date().toISOString().split("T")[0];
-
-    // 커밋 수 계산 (예시)
-    return {
-      todayCommits: Math.floor(Math.random() * 10), // 실제로는 API에서 가져온 데이터
-      lastCommit: new Date().toLocaleString("ko-KR"),
-    };
-  } catch (error) {
-    throw new Error(
-      "GitLab 커밋 확인 중 오류가 발생했습니다: " + error.message
-    );
+    if (!res.ok) throw new Error(`Webhook 호출 실패 (${res.status})`);
+    showResult("Webhook 전송 완료!", "success");
+  } catch (err) {
+    showResult(`오류: ${err.message}`, "error");
   }
-}
+});
 
 // 결과 메시지 표시
 function showResult(message, type) {
@@ -112,10 +100,7 @@ function showResult(message, type) {
   resultDiv.className = `result ${type}`;
   resultDiv.classList.remove("hidden");
 
-  // 성공 메시지는 3초 후 자동으로 숨김
   if (type === "success") {
-    setTimeout(() => {
-      resultDiv.classList.add("hidden");
-    }, 3000);
+    setTimeout(() => resultDiv.classList.add("hidden"), 3000);
   }
 }
